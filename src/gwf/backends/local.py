@@ -314,7 +314,11 @@ class Worker:
                 env=env,
             )
 
-            process.communicate(target.spec)
+            script = "python -m gwf_exec.cli {workflow_path} {target_name}".format(
+                workflow_path=os.path.join(target.working_dir, "workflow.py"),
+                target_name=target.name,
+            )
+            process.communicate(script)
             if process.returncode != 0:
                 raise Exception(
                     "Target {} exited with a non-zero return code.".format(target.name)
