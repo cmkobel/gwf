@@ -5,7 +5,6 @@ import os.path
 from collections import defaultdict
 from enum import Enum
 
-from .backends import Status
 from .exceptions import WorkflowError
 from .utils import LazyDict, cache, load_workflow, parse_path, timer
 
@@ -64,6 +63,9 @@ class TargetStatus(Enum):
     SUBMITTED = 1  #: The target has been submitted, but is not currently running.
     RUNNING = 2  #: The target is currently running.
     COMPLETED = 3  #: The target has completed and should not run.
+    FAILED = 4
+    KILLED = 5
+    CANCELLED = 6
 
 
 class Graph:
@@ -261,6 +263,13 @@ class Scheduler:
         system and that is not provided by another target.
     """
 
+    SHOULDRUN_STATES = (
+        TargetStatus.FAILED,
+        TargetStatus.KILLED,
+        TargetStatus.CANCELLED,
+        TargetStatus.SHOULDRUN,
+    )
+
     def __init__(self, graph, backend, dry_run=False, file_cache=FileCache()):
         """
         :param gwf.Graph graph:
@@ -278,6 +287,9 @@ class Scheduler:
 
         self._file_cache = file_cache
         self._pretend_known = set()
+        from .models import open_db
+
+        self._state_db = open_db()
 
     def prepare_target_options(self, target):
         """Apply backend-specific option defaults to a target.
@@ -313,7 +325,7 @@ class Scheduler:
         logger.debug("Scheduling target %s", target)
 
         if (
-            self.backend.status(target) != Status.UNKNOWN
+            self.status(target) == TargetStatus.SUBMITTED
             or target in self._pretend_known
         ):
             logger.debug("Target %s has already been submitted", target)
@@ -325,13 +337,18 @@ class Scheduler:
             if was_submitted:
                 submitted_deps.add(dependency)
 
-        if submitted_deps or self.should_run(target):
-            self.prepare_target_options(target)
+        if submitted_deps or self.status(target) in Scheduler.SHOULDRUN_STATES:
             if self.dry_run:
                 logger.info("Would submit target %s", target)
                 self._pretend_known.add(target)
             else:
                 logger.info("Submitting target %s", target)
+                from .models import TargetState
+
+                state = TargetState.from_target(self._state_db, target)
+                state.reset(autocommit=False)
+                state.submitted()
+                state.commit()
                 self.backend.submit(target, dependencies=submitted_deps)
             return True
         else:
@@ -360,6 +377,23 @@ class Scheduler:
                 schedules.append(was_submitted)
         logger.debug("Submitted %d targets", submitted_targets)
         return schedules
+
+    def update_state(self, target):
+        from .models import TargetState
+
+        logger.debug("Updating state of %s", target)
+        state = TargetState.from_target(self._state_db, target)
+
+        for dep in self.graph.dependencies[target]:
+            dep_state = self.update_state(dep)
+            if (
+                dep_state.is_failed()
+                or dep_state.is_killed()
+                or dep_state.is_cancelled()
+                or dep_state.is_shouldrun()
+            ):
+                state.reset()
+        return state
 
     @cache
     def should_run(self, target):
@@ -438,9 +472,26 @@ class Scheduler:
         :param Target target:
             The target to return status for.
         """
-        status = self.backend.status(target)
-        if status == Status.UNKNOWN:
-            if self.should_run(target):
+
+        state = self.update_state(target)
+        should_run = self.should_run(target)
+        if state.is_shouldrun():
+            if should_run:
                 return TargetStatus.SHOULDRUN
-            return TargetStatus.COMPLETED
-        return TargetStatus[status.name]
+            else:
+                return TargetStatus.COMPLETED
+        elif state.is_submitted():
+            return TargetStatus.SUBMITTED
+        elif state.is_running():
+            return TargetStatus.RUNNING
+        elif state.is_completed():
+            if should_run:
+                return TargetStatus.SHOULDRUN
+            else:
+                return TargetStatus.COMPLETED
+        elif state.is_failed():
+            return TargetStatus.FAILED
+        elif state.is_cancelled():
+            return TargetStatus.CANCELLED
+        elif state.is_killed():
+            return TargetStatus.KILLED
