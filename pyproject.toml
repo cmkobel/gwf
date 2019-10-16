@@ -54,6 +54,8 @@ touch = "gwf.plugins.touch:touch"
 python = "^3.5"
 click = "^6.0"
 click-plugins = "^1.0"
+lmdb = "^0.97.0"
+attrs = "^19.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
