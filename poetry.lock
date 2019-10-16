@@ -17,14 +17,6 @@ version = "1.3.0"
 
 [[package]]
 category = "main"
-description = "public -- @public for populating __all__"
-name = "atpublic"
-optional = false
-python-versions = "*"
-version = "1.0"
-
-[[package]]
-category = "main"
 description = "Classes Without Boilerplate"
 name = "attrs"
 optional = false
