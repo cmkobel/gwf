@@ -7,6 +7,9 @@ from ..filtering import StatusFilter, EndpointFilter, NameFilter, filter_generic
 
 STATUS_COLORS = {
     TargetStatus.SHOULDRUN: "magenta",
+    TargetStatus.KILLED: "magenta",
+    TargetStatus.CANCELLED: "magenta",
+    TargetStatus.FAILED: "magenta",
     TargetStatus.SUBMITTED: "yellow",
     TargetStatus.RUNNING: "blue",
     TargetStatus.COMPLETED: "green",
@@ -14,6 +17,9 @@ STATUS_COLORS = {
 
 STATUS_ORDER = (
     TargetStatus.SHOULDRUN,
+    TargetStatus.KILLED,
+    TargetStatus.CANCELLED,
+    TargetStatus.FAILED,
     TargetStatus.SUBMITTED,
     TargetStatus.RUNNING,
     TargetStatus.COMPLETED,
@@ -47,7 +53,12 @@ def print_table(scheduler, graph, targets):
         def num_deps_with_status(status):
             return sum(1 for target in deps if scheduler.status(target) == status)
 
-        num_shouldrun = num_deps_with_status(TargetStatus.SHOULDRUN)
+        num_shouldrun = (
+            num_deps_with_status(TargetStatus.SHOULDRUN)
+            + num_deps_with_status(TargetStatus.KILLED)
+            + num_deps_with_status(TargetStatus.CANCELLED)
+            + num_deps_with_status(TargetStatus.FAILED)
+        )
         num_submitted = num_deps_with_status(TargetStatus.SUBMITTED)
         num_running = num_deps_with_status(TargetStatus.RUNNING)
         num_completed = num_deps_with_status(TargetStatus.COMPLETED)
