@@ -342,14 +342,9 @@ class TestShouldRun(unittest.TestCase):
         scheduler = Scheduler(graph=graph, backend=DummyBackend())
         with self.assertLogs(level="DEBUG") as logs:
             self.assertTrue(scheduler.schedule(target))
-            self.assertEqual(
-                logs.output,
-                [
-                    "DEBUG:gwf.core:Scheduling target TestTarget",
-                    "DEBUG:gwf.core:TestTarget should run because it is a sink",
-                    "INFO:gwf.core:Submitting target TestTarget",
-                ],
-            )
+            self.assertIn("DEBUG:gwf.core:Scheduling target TestTarget", logs.output)
+            self.assertIn("DEBUG:gwf.core:TestTarget should run because it is a sink", logs.output)
+            self.assertIn("INFO:gwf.core:Submitting target TestTarget", logs.output)
 
     def test_target_should_not_run_if_it_is_a_source_and_all_outputs_exist(self):
         workflow = Workflow(working_dir="/some/dir")
@@ -431,7 +426,8 @@ def test_scheduling_submitted_target(backend, monkeypatch):
     graph = Graph.from_targets({"TestTarget": target})
     scheduler = Scheduler(graph=graph, backend=backend)
     monkeypatch.setattr(scheduler, "should_run", lambda t: True)
-    backend.submit(target, dependencies=set())
+    scheduler.schedule(target)
+
     assert len(backend.submit.call_args_list) == 1
     assert scheduler.schedule(target) == True
     assert len(backend.submit.call_args_list) == 1
@@ -629,8 +625,7 @@ def test_scheduling_branch_and_join_structure_with_previously_submitted_dependen
     scheduler = Scheduler(graph=graph, backend=backend)
     monkeypatch.setattr(scheduler, "should_run", lambda t: True)
 
-    backend.submit(target1, dependencies=set())
-
+    scheduler.schedule(target1)
     assert scheduler.schedule(target4) == True
     assert len(backend.submit.call_args_list) == 4
     assert call(target2, dependencies=set([target1])) in backend.submit.call_args_list

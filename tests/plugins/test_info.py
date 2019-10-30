@@ -1,3 +1,5 @@
+import os
+import os.path
 import json
 
 import pytest
@@ -15,19 +17,13 @@ gwf.target('Target3', inputs=['a.txt'], outputs=['c.txt'])
 
 
 @pytest.fixture
-def simple_workflow(tmpdir):
-    workflow_file = tmpdir.join("workflow.py")
-    workflow_file.write(SIMPLE_WORKFLOW)
-    return tmpdir
+def simple_workflow():
+    with open("workflow.py", "w") as fileobj:
+        fileobj.write(SIMPLE_WORKFLOW)
+    return os.path.join(os.getcwd(), "workflow.py")
 
 
-@pytest.fixture(autouse=True)
-def setup(simple_workflow):
-    with simple_workflow.as_cwd():
-        yield
-
-
-def test_info_all_targets(cli_runner):
+def test_info_all_targets(cli_runner, simple_workflow):
     args = ["-b", "testing", "info"]
     result = cli_runner.invoke(main, args)
     doc = json.loads(result.output)
@@ -37,7 +33,7 @@ def test_info_all_targets(cli_runner):
     assert "Target3" in doc
 
 
-def test_info_single_target(cli_runner):
+def test_info_single_target(cli_runner, simple_workflow):
     args = ["-b", "testing", "info", "Target1"]
     result = cli_runner.invoke(main, args)
     doc = json.loads(result.output)

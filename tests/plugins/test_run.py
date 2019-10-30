@@ -1,3 +1,6 @@
+import os
+import os.path
+
 import pytest
 
 from gwf.cli import main
@@ -12,19 +15,13 @@ gwf.target('Target2', inputs=[], outputs=[]) << "echo world hello"
 
 
 @pytest.fixture
-def simple_workflow(tmpdir):
-    workflow_file = tmpdir.join("workflow.py")
-    workflow_file.write(SIMPLE_WORKFLOW)
-    return tmpdir
+def simple_workflow():
+    with open("workflow.py", "w") as fileobj:
+        fileobj.write(SIMPLE_WORKFLOW)
+    return os.path.join(os.getcwd(), "workflow.py")
 
 
-@pytest.fixture(autouse=True)
-def setup(simple_workflow):
-    with simple_workflow.as_cwd():
-        yield
-
-
-def test_run_all_targets(cli_runner, mocker):
+def test_run_all_targets(cli_runner, mocker, simple_workflow):
     mock_schedule_many = mocker.patch("gwf.plugins.run.Scheduler.schedule_many")
 
     args = ["-b", "testing", "run"]
@@ -35,7 +32,7 @@ def test_run_all_targets(cli_runner, mocker):
     assert {x.name for x in args[0]} == {"Target1", "Target2"}
 
 
-def test_run_specified_target(cli_runner, mocker):
+def test_run_specified_target(cli_runner, mocker, simple_workflow):
     mock_schedule_many = mocker.patch("gwf.plugins.run.Scheduler.schedule_many")
 
     args = ["-b", "testing", "run", "Target1"]

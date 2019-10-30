@@ -4,38 +4,27 @@ import pytest
 
 from gwf import Target
 from gwf.core import Graph, Scheduler, TargetStatus
-from gwf.backends import Status
-from gwf.backends.testing import TestingBackend
-from gwf.filtering import StatusFilter, NameFilter, EndpointFilter
+from gwf.filtering import EndpointFilter, NameFilter, StatusFilter
+from gwf.models import get_target_state
 
 
 @pytest.fixture
-def backend():
-    return create_autospec(TestingBackend(), spec_set=True)
+def backend(mocker):
+    return mocker.Mock()
 
 
-@pytest.fixture
-def graph():
-    return create_autospec(
-        Graph(dependencies={}, dependents={}, provides={}, targets={}, unresolved={}),
-        spec_set=True,
-    )
+def test_filter_status_completed(backend):
+    target = Target.empty("TestTarget")
+    graph = Graph.from_targets({"TestTarget": target})
 
-
-@pytest.fixture
-def scheduler(backend, graph):
     scheduler = Scheduler(backend=backend, graph=graph)
     scheduler.should_run = create_autospec(scheduler.should_run, spec_set=True)
-    return scheduler
-
-
-def test_filter_status_completed(scheduler):
-    scheduler.backend.status.return_value = Status.UNKNOWN
 
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.COMPLETED])
-    target = Target(
-        "TestTarget", inputs=[], outputs=[], options={}, working_dir="/some/dir"
-    )
+
+    # state = get_target_state(target)
+
+    # state.reset()
 
     status_filter.scheduler.should_run.return_value = False
     assert list(status_filter.apply([target])) == [target]
@@ -44,75 +33,90 @@ def test_filter_status_completed(scheduler):
     assert list(status_filter.apply([target])) == []
 
 
-def test_filter_status_shouldrun(scheduler):
+def test_filter_status_shouldrun(backend):
+    target = Target.empty("TestTarget")
+    graph = Graph.from_targets({"TestTarget": target})
+
+    scheduler = Scheduler(backend=backend, graph=graph)
+    scheduler.should_run = create_autospec(scheduler.should_run, spec_set=True)
+
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SHOULDRUN])
-    target = Target(
-        "TestTarget", inputs=[], outputs=[], options={}, working_dir="/some/dir"
-    )
 
-    status_filter.scheduler.backend.status.return_value = Status.UNKNOWN
+    state = get_target_state(target)
+
+    state.reset()
+
     status_filter.scheduler.should_run.return_value = False
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.UNKNOWN
     status_filter.scheduler.should_run.return_value = True
     assert list(status_filter.apply([target])) == [target]
 
-    status_filter.scheduler.backend.status.return_value = Status.RUNNING
+    state.submitted()
+
     status_filter.scheduler.should_run.return_value = False
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.RUNNING
     status_filter.scheduler.should_run.return_value = True
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.SUBMITTED
+    state.running()
+
     status_filter.scheduler.should_run.return_value = False
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.SUBMITTED
     status_filter.scheduler.should_run.return_value = True
     assert list(status_filter.apply([target])) == []
 
 
-def test_filter_status_running(scheduler):
+def test_filter_status_running(backend):
+    target = Target.empty("TestTarget")
+    graph = Graph.from_targets({"TestTarget": target})
+
+    scheduler = Scheduler(backend=backend, graph=graph)
+    scheduler.should_run = create_autospec(scheduler.should_run, spec_set=True)
+
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.RUNNING])
-    target = Target(
-        "TestTarget", inputs=[], outputs=[], options={}, working_dir="/some/dir"
-    )
+    status_filter.scheduler.should_run.return_value = True
 
-    status_filter.scheduler.backend.status.return_value = Status.UNKNOWN
+    state = get_target_state(target)
+
+    state.reset()
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.SUBMITTED
+    state.submitted()
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.RUNNING
+    state.running()
     assert list(status_filter.apply([target])) == [target]
 
 
-def test_filter_status_submitted(scheduler):
+def test_filter_status_submitted(backend):
+    target = Target.empty("TestTarget")
+    graph = Graph.from_targets({"TestTarget": target})
+
+    scheduler = Scheduler(backend=backend, graph=graph)
+    scheduler.should_run = create_autospec(scheduler.should_run, spec_set=True)
+
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SUBMITTED])
-    target = Target(
-        "TestTarget", inputs=[], outputs=[], options={}, working_dir="/some/dir"
-    )
+    status_filter.scheduler.should_run.return_value = True
 
-    status_filter.scheduler.backend.status.return_value = Status.UNKNOWN
+    state = get_target_state(target)
+
+    state.reset()
     assert list(status_filter.apply([target])) == []
 
-    status_filter.scheduler.backend.status.return_value = Status.SUBMITTED
+    state.submitted()
     assert list(status_filter.apply([target])) == [target]
 
-    status_filter.scheduler.backend.status.return_value = Status.RUNNING
+    state.running()
     assert list(status_filter.apply([target])) == []
 
 
 def test_filter_name():
-    target1 = Target("Foo", inputs=[], outputs=[], options={}, working_dir="/some/dir")
-    target2 = Target("Bar", inputs=[], outputs=[], options={}, working_dir="/some/dir")
-    target3 = Target(
-        "FooBar", inputs=[], outputs=[], options={}, working_dir="/some/dir"
-    )
+    target1 = Target.empty("Foo")
+    target2 = Target.empty("Bar")
+    target3 = Target.empty("FooBar")
 
     name_filter = NameFilter(patterns=["Foo"])
     assert set(name_filter.apply([target1, target2, target3])) == {target1}
@@ -125,11 +129,9 @@ def test_filter_name():
 
 
 def test_filter_endpoint():
-    target1 = Target("Foo", inputs=[], outputs=[], options={}, working_dir="/some/dir")
-    target2 = Target("Bar", inputs=[], outputs=[], options={}, working_dir="/some/dir")
-    target3 = Target(
-        "FooBar", inputs=[], outputs=[], options={}, working_dir="/some/dir"
-    )
+    target1 = Target.empty("Foo")
+    target2 = Target.empty("Bar")
+    target3 = Target.empty("FooBar")
 
     endpoint_filter = EndpointFilter(endpoints={target1})
     assert set(endpoint_filter.apply([target1, target2, target3])) == {target1}
