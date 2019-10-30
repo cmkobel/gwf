@@ -111,7 +111,11 @@ class TargetState:
 
         if name not in ALL_STATES:
             raise AttributeError(name)
-        return lambda: self.move_to(name)
+
+        def move_to_wrapper(*args, **kwargs):
+            self.move_to(name, *args, **kwargs)
+
+        return move_to_wrapper
 
     def reset(self, autocommit=True):
         self.submitted_at = None
@@ -132,18 +136,25 @@ class TargetState:
             payload = json.dumps(dct).encode("utf-8")
             txn.put(self.target.name.encode("utf-8"), payload)
 
+    def __str__(self):
+        return self.state
+
     @classmethod
     def from_payload(cls, db, target, payload=None):
-        if target not in TargetState._CACHE:
-            logger.debug("Fetching target state from database")
-            if payload is None:
-                return cls(db, target)
-            state = cls(db, target, **json.loads(payload))
-            TargetState._CACHE[target] = state
-        return TargetState._CACHE[target]
+        logger.debug("Fetching target state from database")
+        if payload is None:
+            return cls(db, target)
+        state = cls(db, target, **json.loads(payload))
+        return state
 
     @classmethod
     def from_target(cls, db, target):
         with db.begin() as txn:
             payload = txn.get(target.name.encode("utf-8"))
             return cls.from_payload(db, target, payload)
+
+
+def get_target_state(target, db=None):
+    if db is None:
+        db = open_db()
+    return TargetState.from_target(db, target)
