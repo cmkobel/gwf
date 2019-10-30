@@ -7,6 +7,7 @@ from enum import Enum
 
 from .exceptions import WorkflowError
 from .utils import LazyDict, cache, load_workflow, parse_path, timer
+from .models import open_db
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +271,9 @@ class Scheduler:
         TargetStatus.SHOULDRUN,
     )
 
-    def __init__(self, graph, backend, dry_run=False, file_cache=FileCache()):
+    def __init__(
+        self, graph, backend, dry_run=False, file_cache=FileCache(), state_db=None
+    ):
         """
         :param gwf.Graph graph:
             Graph of the workflow.
@@ -287,9 +290,7 @@ class Scheduler:
 
         self._file_cache = file_cache
         self._pretend_known = set()
-        from .models import open_db
-
-        self._state_db = open_db()
+        self._state_db = state_db or open_db()
 
     def prepare_target_options(self, target):
         """Apply backend-specific option defaults to a target.
