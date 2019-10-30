@@ -44,7 +44,7 @@ TRANSITION_MAP = {
 
 
 def open_db():
-    return lmdb.open(METADATA_FILE, max_dbs=2)
+    return lmdb.open(METADATA_FILE)
 
 
 class StateError(GWFError):
