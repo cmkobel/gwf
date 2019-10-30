@@ -1,3 +1,6 @@
+import os
+import os.path
+
 import pytest
 
 from gwf.cli import main
@@ -15,6 +18,10 @@ gwf.target('Target2', inputs=[], outputs=[]) << "echo world hello"
 def simple_workflow():
     with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
+<<<<<<< HEAD
+=======
+    return os.path.join(os.getcwd(), "workflow.py")
+>>>>>>> Clean up and fix tests to use TargetState
 
 
 def test_run_all_targets(cli_runner, mocker, simple_workflow):

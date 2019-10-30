@@ -5,7 +5,11 @@ import pytest
 from gwf import Target
 from gwf.core import Graph, Scheduler, TargetStatus
 from gwf.filtering import EndpointFilter, NameFilter, StatusFilter
+<<<<<<< HEAD
 from gwf.meta import get_target_meta
+=======
+from gwf.models import get_target_state
+>>>>>>> Clean up and fix tests to use TargetState
 
 
 @pytest.fixture
@@ -22,7 +26,11 @@ def test_filter_status_completed(backend):
 
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.COMPLETED])
 
+<<<<<<< HEAD
     # state = get_target_meta(target)
+=======
+    # state = get_target_state(target)
+>>>>>>> Clean up and fix tests to use TargetState
 
     # state.reset()
 
@@ -40,12 +48,21 @@ def test_filter_status_shouldrun(backend):
     scheduler = Scheduler(backend=backend, graph=graph)
     scheduler.should_run = create_autospec(scheduler.should_run, spec_set=True)
 
+<<<<<<< HEAD
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.INCOMPLETE])
 
     state = get_target_meta(target)
 
     state.reset()
 
+=======
+    status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SHOULDRUN])
+
+    state = get_target_state(target)
+
+    state.reset()
+
+>>>>>>> Clean up and fix tests to use TargetState
     status_filter.scheduler.should_run.return_value = False
     assert list(status_filter.apply([target])) == []
 
@@ -79,7 +96,11 @@ def test_filter_status_running(backend):
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.RUNNING])
     status_filter.scheduler.should_run.return_value = True
 
+<<<<<<< HEAD
     state = get_target_meta(target)
+=======
+    state = get_target_state(target)
+>>>>>>> Clean up and fix tests to use TargetState
 
     state.reset()
     assert list(status_filter.apply([target])) == []
@@ -101,7 +122,11 @@ def test_filter_status_submitted(backend):
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SUBMITTED])
     status_filter.scheduler.should_run.return_value = True
 
+<<<<<<< HEAD
     state = get_target_meta(target)
+=======
+    state = get_target_state(target)
+>>>>>>> Clean up and fix tests to use TargetState
 
     state.reset()
     assert list(status_filter.apply([target])) == []
