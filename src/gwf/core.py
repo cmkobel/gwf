@@ -391,7 +391,7 @@ class Scheduler:
                 dep_state.is_failed()
                 or dep_state.is_killed()
                 or dep_state.is_cancelled()
-                or dep_state.is_shouldrun()
+                or dep_state.is_unknown()
             ):
                 state.reset()
         return state
@@ -476,7 +476,7 @@ class Scheduler:
 
         state = self.update_state(target)
         should_run = self.should_run(target)
-        if state.is_shouldrun():
+        if state.is_unknown():
             if should_run:
                 return TargetStatus.SHOULDRUN
             else:
