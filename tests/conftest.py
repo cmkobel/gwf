@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 
 import pytest
 
@@ -16,3 +17,10 @@ def no_sleep(request, monkeypatch):
         pass
 
     monkeypatch.setattr(time, "sleep", sleep)
+
+
+@pytest.fixture(autouse=True)
+def isolated_working_dir(request, tmpdir):
+    with tmpdir.as_cwd():
+        Path(".gwf").mkdir()
+        yield
