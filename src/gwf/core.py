@@ -323,6 +323,7 @@ class Scheduler:
             Target to be scheduled.
         """
         logger.debug("Scheduling target %s", target)
+        self.prepare_target_options(target)
 
         if (
             self.status(target) == TargetStatus.SUBMITTED
