@@ -132,7 +132,7 @@ class TargetMeta:
         logger.debug("Fetching target metadata from database")
         if payload is None:
             return cls(db, target)
-        state = cls(db, target, **json.loads(payload))
+        state = cls(db, target, **json.loads(payload.decode("utf-8")))
         return state
 
     @classmethod
