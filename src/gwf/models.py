@@ -40,7 +40,7 @@ class StateError(GWFError):
 
 
 @attr.s
-class TargetState:
+class TargetMeta:
     _CACHE = {}
 
     db = attr.ib(repr=False)
@@ -118,7 +118,7 @@ class TargetState:
             dct = attr.asdict(
                 self,
                 filter=attr.filters.exclude(
-                    attr.fields(TargetState).db, attr.fields(TargetState).target
+                    attr.fields(TargetMeta).db, attr.fields(TargetMeta).target
                 ),
             )
             payload = json.dumps(dct).encode("utf-8")
@@ -129,7 +129,7 @@ class TargetState:
 
     @classmethod
     def from_payload(cls, db, target, payload=None):
-        logger.debug("Fetching target state from database")
+        logger.debug("Fetching target metadata from database")
         if payload is None:
             return cls(db, target)
         state = cls(db, target, **json.loads(payload))
@@ -142,7 +142,7 @@ class TargetState:
             return cls.from_payload(db, target, payload)
 
 
-def get_target_state(target, db=None):
+def get_target_meta(target, db=None):
     if db is None:
         db = open_db()
-    return TargetState.from_target(db, target)
+    return TargetMeta.from_target(db, target)

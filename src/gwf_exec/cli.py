@@ -2,7 +2,7 @@ import logging
 import sys
 
 from gwf.core import workflow_from_path
-from gwf.models import get_target_state
+from gwf.models import get_target_meta
 
 from .exec import Executor
 
@@ -14,7 +14,7 @@ def main(workflow_path, target_name):
     workflow = workflow_from_path(workflow_path)
     target = workflow.targets[target_name]
 
-    state = get_target_state(target)
+    state = get_target_meta(target)
     executor = Executor(target, state)
     return executor.execute()
 

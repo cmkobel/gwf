@@ -5,7 +5,7 @@ import pytest
 from gwf import Target
 from gwf.core import Graph, Scheduler, TargetStatus
 from gwf.filtering import EndpointFilter, NameFilter, StatusFilter
-from gwf.models import get_target_state
+from gwf.models import get_target_meta
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def test_filter_status_completed(backend):
 
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.COMPLETED])
 
-    # state = get_target_state(target)
+    # state = get_target_meta(target)
 
     # state.reset()
 
@@ -42,7 +42,7 @@ def test_filter_status_shouldrun(backend):
 
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SHOULDRUN])
 
-    state = get_target_state(target)
+    state = get_target_meta(target)
 
     state.reset()
 
@@ -79,7 +79,7 @@ def test_filter_status_running(backend):
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.RUNNING])
     status_filter.scheduler.should_run.return_value = True
 
-    state = get_target_state(target)
+    state = get_target_meta(target)
 
     state.reset()
     assert list(status_filter.apply([target])) == []
@@ -101,7 +101,7 @@ def test_filter_status_submitted(backend):
     status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SUBMITTED])
     status_filter.scheduler.should_run.return_value = True
 
-    state = get_target_state(target)
+    state = get_target_meta(target)
 
     state.reset()
     assert list(status_filter.apply([target])) == []
