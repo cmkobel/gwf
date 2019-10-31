@@ -16,10 +16,8 @@ gwf.target('Target3', inputs=['a.txt'], outputs=['c.txt'])
 
 @pytest.fixture(autouse=True)
 def simple_workflow():
-    path = Path(".").joinpath("workflow.py")
-    with open(path, "w") as fileobj:
+    with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-    return path
 
 
 @pytest.fixture(autouse=True)

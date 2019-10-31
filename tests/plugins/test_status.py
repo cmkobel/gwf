@@ -1,6 +1,3 @@
-import os
-import os.path
-
 import pytest
 
 from gwf.cli import main
@@ -17,7 +14,6 @@ gwf.target('Target2', inputs=['a.txt'], outputs=['b.txt']) << "echo world hello"
 def simple_workflow():
     with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-    return os.path.join(os.getcwd(), "workflow.py")
 
 
 def test_status_shows_all_targets(cli_runner, simple_workflow):

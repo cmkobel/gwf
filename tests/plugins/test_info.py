@@ -1,5 +1,3 @@
-import os
-import os.path
 import json
 
 import pytest
@@ -20,7 +18,6 @@ gwf.target('Target3', inputs=['a.txt'], outputs=['c.txt'])
 def simple_workflow():
     with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-    return os.path.join(os.getcwd(), "workflow.py")
 
 
 def test_info_all_targets(cli_runner, simple_workflow):
