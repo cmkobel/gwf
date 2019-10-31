@@ -335,8 +335,7 @@ class Scheduler:
 
         submitted_deps = set()
         for dependency in sorted(self.graph.dependencies[target], key=lambda t: t.name):
-            was_submitted = self.schedule(dependency)
-            if was_submitted:
+            if self.schedule(dependency):
                 submitted_deps.add(dependency)
 
         if submitted_deps or self.status(target) in Scheduler.SHOULDRUN_STATES:
