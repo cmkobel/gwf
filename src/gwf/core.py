@@ -6,7 +6,7 @@ from collections import defaultdict
 from enum import Enum
 
 from .exceptions import WorkflowError
-from .models import get_target_meta, open_db
+from .meta import get_target_meta, open_db
 from .utils import LazyDict, cache, load_workflow, parse_path, timer
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@ import pytest
 from gwf import Target
 from gwf.core import Graph, Scheduler, TargetStatus
 from gwf.filtering import EndpointFilter, NameFilter, StatusFilter
-from gwf.models import get_target_meta
+from gwf.meta import get_target_meta
 
 
 @pytest.fixture

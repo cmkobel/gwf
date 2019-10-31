@@ -2,7 +2,7 @@ import logging
 import sys
 
 from gwf.core import workflow_from_path
-from gwf.models import get_target_meta
+from gwf.meta import get_target_meta
 
 from .exec import Executor
 
