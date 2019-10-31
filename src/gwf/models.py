@@ -13,34 +13,22 @@ logger = logging.getLogger(__name__)
 
 METADATA_FILE = os.path.join(".gwf", "meta.db")
 
-STATE_DB_NAME = "state"
 
-STATE_UNKNOWN = "unknown"
-STATE_SUBMITTED = "submitted"
-STATE_RUNNING = "running"
-STATE_COMPLETED = "completed"
-STATE_FAILED = "failed"
-STATE_CANCELLED = "cancelled"
-STATE_KILLED = "killed"
+class State:
+    UNKNOWN = "unknown"
+    SUBMITTED = "submitted"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    KILLED = "killed"
 
-ALL_STATES = (
-    STATE_UNKNOWN,
-    STATE_SUBMITTED,
-    STATE_RUNNING,
-    STATE_COMPLETED,
-    STATE_FAILED,
-    STATE_CANCELLED,
-    STATE_KILLED,
-)
+    ALL_STATES = (UNKNOWN, SUBMITTED, RUNNING, COMPLETED, FAILED, CANCELLED, KILLED)
 
-INITIAL_STATE = STATE_UNKNOWN
-END_STATES = (STATE_COMPLETED, STATE_FAILED, STATE_KILLED, STATE_CANCELLED)
+    INITIAL_STATE = UNKNOWN
+    END_STATES = (COMPLETED, FAILED, KILLED, CANCELLED)
 
-TRANSITION_MAP = {
-    STATE_UNKNOWN: [STATE_SUBMITTED],
-    STATE_SUBMITTED: [STATE_RUNNING],
-    STATE_RUNNING: END_STATES,
-}
+    TRANSITION_MAP = {UNKNOWN: [SUBMITTED], SUBMITTED: [RUNNING], RUNNING: END_STATES}
 
 
 def open_db():
@@ -60,7 +48,7 @@ class TargetState:
     submitted_at = attr.ib(type=float, default=None)
     started_at = attr.ib(type=float, default=None)
     ended_at = attr.ib(type=float, default=None)
-    state = attr.ib(type=str, default=INITIAL_STATE)
+    state = attr.ib(type=str, default=State.INITIAL_STATE)
 
     def walltime(self):
         """Return walltime of the target in seconds.
@@ -68,7 +56,7 @@ class TargetState:
         This method will return *None* if the target is not in an end state,
         that is, completed, failed, or killed.
         """
-        if self.state not in END_STATES:
+        if self.state not in State.END_STATES:
             return None
         return self.ended_at - self.started_at
 
@@ -78,24 +66,24 @@ class TargetState:
         This method will return *None* if the target is not in the running
         state.
         """
-        if self.state != STATE_RUNNING:
+        if self.state != State.RUNNING:
             return None
         return time.time() - self.started_at
 
     def move_to(self, state, autocommit=True):
-        if self.state not in TRANSITION_MAP:
+        if self.state not in State.TRANSITION_MAP:
             raise StateError("Cannot move out of state {}".format(self.state))
-        if state not in TRANSITION_MAP[self.state]:
+        if state not in State.TRANSITION_MAP[self.state]:
             raise StateError(
                 "Cannot move from state {} to state {}".format(self.state, state)
             )
 
         current_time = time.time()
-        if state == STATE_SUBMITTED:
+        if state == State.SUBMITTED:
             self.submitted_at = current_time
-        elif state == STATE_RUNNING:
+        elif state == State.RUNNING:
             self.started_at = current_time
-        elif state in END_STATES:
+        elif state in State.END_STATES:
             self.ended_at = current_time
         self.state = state
 
@@ -105,11 +93,11 @@ class TargetState:
     def __getattr__(self, name):
         if name.startswith("is_"):
             suffix = name[3:]
-            if suffix not in ALL_STATES:
+            if suffix not in State.ALL_STATES:
                 raise AttributeError(name)
             return lambda: self.state == suffix
 
-        if name not in ALL_STATES:
+        if name not in State.ALL_STATES:
             raise AttributeError(name)
 
         def move_to_wrapper(*args, **kwargs):
@@ -121,7 +109,7 @@ class TargetState:
         self.submitted_at = None
         self.started_at = None
         self.ended_at = None
-        self.state = INITIAL_STATE
+        self.state = State.INITIAL_STATE
         if autocommit:
             self.commit()
 

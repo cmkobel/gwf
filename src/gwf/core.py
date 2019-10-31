@@ -6,8 +6,8 @@ from collections import defaultdict
 from enum import Enum
 
 from .exceptions import WorkflowError
+from .models import get_target_state
 from .utils import LazyDict, cache, load_workflow, parse_path, timer
-from .models import open_db
 
 logger = logging.getLogger(__name__)
 
@@ -345,12 +345,12 @@ class Scheduler:
                 self._pretend_known.add(target)
             else:
                 logger.info("Submitting target %s", target)
-                from .models import TargetState
 
-                state = TargetState.from_target(self._state_db, target)
+                state = get_target_state(target, db=self._state_db)
                 state.reset(autocommit=False)
-                state.submitted()
+                state.submitted(autocommit=False)
                 state.commit()
+
                 self.backend.submit(target, dependencies=submitted_deps)
             return True
         else:
@@ -381,10 +381,8 @@ class Scheduler:
         return schedules
 
     def update_state(self, target):
-        from .models import TargetState
-
         logger.debug("Updating state of %s", target)
-        state = TargetState.from_target(self._state_db, target)
+        state = get_target_state(target, self._state_db)
 
         for dep in self.graph.dependencies[target]:
             dep_state = self.update_state(dep)

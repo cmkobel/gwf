@@ -2,7 +2,7 @@ import logging
 import sys
 
 from gwf.core import workflow_from_path
-from gwf.models import TargetState, open_db
+from gwf.models import get_target_state
 
 from .exec import Executor
 
@@ -14,10 +14,9 @@ def main(workflow_path, target_name):
     workflow = workflow_from_path(workflow_path)
     target = workflow.targets[target_name]
 
-    with open_db() as db:
-        state = TargetState.from_target(db, target)
-        executor = Executor(target, state)
-        return executor.execute()
+    state = get_target_state(target)
+    executor = Executor(target, state)
+    return executor.execute()
 
 
 if __name__ == "__main__":
