@@ -6,7 +6,7 @@ from collections import defaultdict
 from enum import Enum
 
 from .exceptions import WorkflowError
-from .meta import get_target_meta, open_db
+from .meta import State, get_target_meta, open_db
 from .utils import LazyDict, cache, load_workflow, parse_path, timer
 
 logger = logging.getLogger(__name__)
@@ -272,7 +272,7 @@ class Scheduler:
     )
 
     def __init__(
-        self, graph, backend, dry_run=False, file_cache=FileCache(), state_db=None
+        self, graph, backend, dry_run=False, file_cache=FileCache(), meta_db=None
     ):
         """
         :param gwf.Graph graph:
@@ -290,7 +290,7 @@ class Scheduler:
 
         self._file_cache = file_cache
         self._pretend_known = set()
-        self._state_db = state_db or open_db()
+        self._meta_db = meta_db or open_db()
 
     def prepare_target_options(self, target):
         """Apply backend-specific option defaults to a target.
@@ -345,10 +345,10 @@ class Scheduler:
             else:
                 logger.info("Submitting target %s", target)
 
-                state = get_target_meta(target, db=self._state_db)
-                state.reset(autocommit=False)
-                state.submitted(autocommit=False)
-                state.commit()
+                meta = get_target_meta(target, db=self._meta_db)
+                meta.reset(autocommit=False)
+                meta.submitted(autocommit=False)
+                meta.commit()
 
                 self.backend.submit(target, dependencies=submitted_deps)
             return True
@@ -381,18 +381,18 @@ class Scheduler:
 
     def update_state(self, target):
         logger.debug("Updating state of %s", target)
-        state = get_target_meta(target, self._state_db)
+        meta = get_target_meta(target, self._meta_db)
 
         for dep in self.graph.dependencies[target]:
             dep_state = self.update_state(dep)
-            if (
-                dep_state.is_failed()
-                or dep_state.is_killed()
-                or dep_state.is_cancelled()
-                or dep_state.is_unknown()
+            if dep_state in (
+                State.FAILED,
+                State.KILLED,
+                State.CANCELLED,
+                State.UNKNOWN,
             ):
-                state.reset()
-        return state
+                meta.reset()
+        return meta
 
     @cache
     def should_run(self, target):
@@ -471,26 +471,20 @@ class Scheduler:
         :param Target target:
             The target to return status for.
         """
-
-        state = self.update_state(target)
+        state = self.update_state(target).state
         should_run = self.should_run(target)
-        if state.is_unknown():
+        if state == State.UNKNOWN or state == State.COMPLETED:
             if should_run:
                 return TargetStatus.SHOULDRUN
             else:
                 return TargetStatus.COMPLETED
-        elif state.is_submitted():
+        elif state == State.SUBMITTED:
             return TargetStatus.SUBMITTED
-        elif state.is_running():
+        elif state == State.RUNNING:
             return TargetStatus.RUNNING
-        elif state.is_completed():
-            if should_run:
-                return TargetStatus.SHOULDRUN
-            else:
-                return TargetStatus.COMPLETED
-        elif state.is_failed():
+        elif state == State.FAILED:
             return TargetStatus.FAILED
-        elif state.is_cancelled():
+        elif state == State.CANCELLED:
             return TargetStatus.CANCELLED
-        elif state.is_killed():
+        elif state == State.KILLED:
             return TargetStatus.KILLED

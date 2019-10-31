@@ -91,12 +91,6 @@ class TargetMeta:
             self.commit()
 
     def __getattr__(self, name):
-        if name.startswith("is_"):
-            suffix = name[3:]
-            if suffix not in State.ALL_STATES:
-                raise AttributeError(name)
-            return lambda: self.state == suffix
-
         if name not in State.ALL_STATES:
             raise AttributeError(name)
 
