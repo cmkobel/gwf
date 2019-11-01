@@ -50,25 +50,19 @@ class TargetMeta:
     ended_at = attr.ib(type=float, default=None)
     state = attr.ib(type=str, default=State.INITIAL_STATE)
 
-    def walltime(self):
-        """Return walltime of the target in seconds.
-
-        This method will return *None* if the target is not in an end state,
-        that is, completed, failed, or killed.
-        """
-        if self.state not in State.END_STATES:
-            return None
-        return self.ended_at - self.started_at
-
     def runtime(self):
-        """Return runtime of the target in seconds so far.
+        """Return runtime of the target in seconds.
 
-        This method will return *None* if the target is not in the running
-        state.
+        If the target is in state SUBMITTED, this method will return None.
+        If the target is in state RUNNING, the elapsed time so far will be
+        returned. Otherwise, the actual time that the target ran will be
+        returned.
         """
-        if self.state != State.RUNNING:
+        if self.state in (State.UNKNOWN, State.SUBMITTED):
             return None
+        if self.state == State.RUNNING:
         return time.time() - self.started_at
+        return self.ended_at - self.started_at
 
     def move_to(self, state, autocommit=True):
         if self.state not in State.TRANSITION_MAP:
