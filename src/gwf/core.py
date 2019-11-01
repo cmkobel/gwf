@@ -3,7 +3,6 @@ import logging
 import os
 import os.path
 from collections import defaultdict
-from enum import Enum
 
 from .exceptions import WorkflowError
 from .meta import State, get_target_meta, open_db
@@ -58,6 +57,8 @@ def graph_from_config(config):
 
 
 class TargetStatus:
+    """Status of a target as computed by the Scheduler."""
+
     INCOMPLETE = "incomplete"
     SUBMITTED = "submitted"
     RUNNING = "running"
@@ -264,13 +265,6 @@ class Scheduler:
         system and that is not provided by another target.
     """
 
-    SHOULDRUN_STATES = (
-        TargetStatus.FAILED,
-        TargetStatus.KILLED,
-        TargetStatus.CANCELLED,
-        TargetStatus.SHOULDRUN,
-    )
-
     def __init__(
         self, graph, backend, dry_run=False, file_cache=FileCache(), meta_db=None
     ):
@@ -291,6 +285,12 @@ class Scheduler:
         self._file_cache = file_cache
         self._pretend_known = set()
         self._meta_db = meta_db or open_db()
+
+        # Sets used to detect and remember invalidated states in
+        # self.fix_states().
+        self._visited = set()
+        self._invalid = set()
+        self._invalidated = set()
 
     def prepare_target_options(self, target):
         """Apply backend-specific option defaults to a target.
@@ -338,7 +338,7 @@ class Scheduler:
             if self.schedule(dependency):
                 submitted_deps.add(dependency)
 
-        if submitted_deps or self.status(target) in Scheduler.SHOULDRUN_STATES:
+        if submitted_deps or self.status(target) in TargetStatus.SHOULDRUN_STATES:
             if self.dry_run:
                 logger.info("Would submit target %s", target)
                 self._pretend_known.add(target)
@@ -378,21 +378,6 @@ class Scheduler:
                 schedules.append(was_submitted)
         logger.debug("Submitted %d targets", submitted_targets)
         return schedules
-
-    def update_state(self, target):
-        logger.debug("Updating state of %s", target)
-        meta = get_target_meta(target, self._meta_db)
-
-        for dep in self.graph.dependencies[target]:
-            dep_state = self.update_state(dep)
-            if dep_state in (
-                State.FAILED,
-                State.KILLED,
-                State.CANCELLED,
-                State.UNKNOWN,
-            ):
-                meta.reset()
-        return meta
 
     @cache
     def should_run(self, target):
@@ -462,6 +447,48 @@ class Scheduler:
             return True
         return False
 
+    def _fix_states(self, target):
+        """Reset state of targets based on dependency states.
+
+        This will detect targets which have a dependency that's in one of the
+        FAILED, KILLED, CANCELLED, UNKNOWN states and resets the target state
+        if it is the case. This situation occurs when a target in a workflow
+        fails which causes the backend to discard all dependent targets. Thus,
+        their status will remain SUBMITTED.
+        """
+
+        def _dfs(target):
+            if target in self._visited:
+                return target in self._invalid or target in self._invalidated
+
+            self._visited.add(target)
+            is_invalid = False
+            for dep in self.graph.dependencies[target]:
+                if _dfs(dep):
+                    is_invalid = True
+
+            meta = get_target_meta(target, self._meta_db)
+            if meta.state in (
+                State.FAILED,
+                State.KILLED,
+                State.CANCELLED,
+                State.UNKNOWN,
+            ):
+                self._invalid.add(target)
+                return True
+
+            if is_invalid:
+                self._invalidated.add(target)
+
+            return is_invalid
+
+        _dfs(target)
+
+        for target in self._invalidated:
+            logger.debug("Resetting state of %s", target)
+            meta = get_target_meta(target, self._meta_db)
+            meta.reset()
+
     def status(self, target):
         """Return the status of a target.
 
@@ -471,20 +498,14 @@ class Scheduler:
         :param Target target:
             The target to return status for.
         """
-        state = self.update_state(target).state
+        self._fix_states(target)
+
+        state = get_target_meta(target, self._meta_db).state
         should_run = self.should_run(target)
         if state == State.UNKNOWN or state == State.COMPLETED:
             if should_run:
-                return TargetStatus.SHOULDRUN
+                return TargetStatus.INCOMPLETE
             else:
                 return TargetStatus.COMPLETED
-        elif state == State.SUBMITTED:
-            return TargetStatus.SUBMITTED
-        elif state == State.RUNNING:
-            return TargetStatus.RUNNING
-        elif state == State.FAILED:
-            return TargetStatus.FAILED
-        elif state == State.CANCELLED:
-            return TargetStatus.CANCELLED
-        elif state == State.KILLED:
-            return TargetStatus.KILLED
+        else:
+            return state
