@@ -1,8 +1,9 @@
+import os.path
 import logging
 from collections import defaultdict
 
 from ..conf import config
-from ..utils import ensure_trailing_newline, retry
+from ..utils import retry
 from .base import PbsLikeBackendBase, Status
 from .exceptions import BackendError
 from .utils import call
@@ -142,10 +143,14 @@ class SlurmBackend(PbsLikeBackendBase):
             out.append(self.option_str.format("--output=", "/dev/null"))
 
         out.append("")
-        out.append("cd {}".format(target.working_dir))
-        out.append("export GWF_JOBID=$SLURM_JOBID")
-        out.append('export GWF_TARGET_NAME="{}"'.format(target.name))
-        out.append("set -e")
+        for line in target.spec.splitlines():
+            out.append("# {}".format(line))
         out.append("")
-        out.append(ensure_trailing_newline(target.spec))
+
+        out.append(
+            "python -m gwf_exec.cli {workflow_path} {target_name}".format(
+                workflow_path=os.path.join(target.working_dir, "workflow.py"),
+                target_name=target.name,
+            )
+        )
         return "\n".join(out)
