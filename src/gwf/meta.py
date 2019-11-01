@@ -61,7 +61,7 @@ class TargetMeta:
         if self.state in (State.UNKNOWN, State.SUBMITTED):
             return None
         if self.state == State.RUNNING:
-        return time.time() - self.started_at
+            return time.time() - self.started_at
         return self.ended_at - self.started_at
 
     def move_to(self, state, autocommit=True):
@@ -111,9 +111,6 @@ class TargetMeta:
             )
             payload = json.dumps(dct).encode("utf-8")
             txn.put(self.target.name.encode("utf-8"), payload)
-
-    def __str__(self):
-        return self.state
 
     @classmethod
     def from_payload(cls, db, target, payload=None):
