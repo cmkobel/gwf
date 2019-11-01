@@ -188,9 +188,7 @@ def test_submit_2(popen, monkeypatch, no_sleep):
     assert "#SBATCH --qos=somename" in script
     assert "#SBATCH --output=.gwf/logs/TestTarget.stdout" in script
     assert "#SBATCH --error=.gwf/logs/TestTarget.stderr" in script
-    assert "cd /some/dir" in script
-    assert "export GWF_JOBID=$SLURM_JOBID" in script
-    assert "echo hello world" in script
+    assert "python -m gwf_exec.cli /some/dir/workflow.py TestTarget" in script
 
     monkeypatch.setitem(config, "backend.slurm.log_mode", "merged")
 
