@@ -40,7 +40,7 @@ def test_filter_status_shouldrun(backend):
     scheduler = Scheduler(backend=backend, graph=graph)
     scheduler.should_run = create_autospec(scheduler.should_run, spec_set=True)
 
-    status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.SHOULDRUN])
+    status_filter = StatusFilter(scheduler=scheduler, status=[TargetStatus.INCOMPLETE])
 
     state = get_target_meta(target)
 

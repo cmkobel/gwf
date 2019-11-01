@@ -57,16 +57,16 @@ def graph_from_config(config):
     return graph_from_path(config["file"])
 
 
-class TargetStatus(Enum):
-    """Status of a target, as reported by the scheduler."""
+class TargetStatus:
+    INCOMPLETE = "incomplete"
+    SUBMITTED = "submitted"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    KILLED = "killed"
 
-    SHOULDRUN = 0  #: The target should run.
-    SUBMITTED = 1  #: The target has been submitted, but is not currently running.
-    RUNNING = 2  #: The target is currently running.
-    COMPLETED = 3  #: The target has completed and should not run.
-    FAILED = 4
-    KILLED = 5
-    CANCELLED = 6
+    SHOULDRUN_STATES = (FAILED, KILLED, CANCELLED, INCOMPLETE)
 
 
 class Graph:

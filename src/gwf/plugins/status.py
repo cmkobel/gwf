@@ -1,12 +1,20 @@
+from collections import Counter
+
 import click
 
 from ..backends import backend_from_config
 from ..core import Scheduler, TargetStatus, graph_from_config
+from ..meta import get_target_meta, open_db
 from ..filtering import StatusFilter, EndpointFilter, NameFilter, filter_generic
 
 
+TABLE_FORMAT = (
+    "{name:<{name_col_width}}  {status:<32}  {duration:>9}  {percentage:>7.2%}"
+)
+
+
 STATUS_COLORS = {
-    TargetStatus.SHOULDRUN: "magenta",
+    TargetStatus.INCOMPLETE: "magenta",
     TargetStatus.KILLED: "magenta",
     TargetStatus.CANCELLED: "magenta",
     TargetStatus.FAILED: "magenta",
@@ -15,78 +23,88 @@ STATUS_COLORS = {
     TargetStatus.COMPLETED: "green",
 }
 
+STATUS_HUMAN = {
+    TargetStatus.INCOMPLETE: "shouldrun (incomplete)",
+    TargetStatus.KILLED: "shouldrun (killed)",
+    TargetStatus.CANCELLED: "shouldrun (cancelled)",
+    TargetStatus.FAILED: "shouldrun (failed)",
+    TargetStatus.SUBMITTED: "submitted",
+    TargetStatus.RUNNING: "  running",
+    TargetStatus.COMPLETED: "completed",
+}
+
 STATUS_ORDER = (
-    TargetStatus.SHOULDRUN,
-    TargetStatus.KILLED,
-    TargetStatus.CANCELLED,
-    TargetStatus.FAILED,
+    TargetStatus.INCOMPLETE,
     TargetStatus.SUBMITTED,
     TargetStatus.RUNNING,
     TargetStatus.COMPLETED,
+    TargetStatus.KILLED,
+    TargetStatus.CANCELLED,
+    TargetStatus.FAILED,
 )
 
 
-def _status_str_to_enum(s):
-    return TargetStatus[s.upper()]
+class StatusDistribution(Counter):
+    def sum(self):
+        return sum(self.values())
 
+    def __add__(self, other):
+        return StatusDistribution(super().__add__(other))
 
-def _status_strs_to_enums(iterable):
-    return list(map(_status_str_to_enum, iterable))
+    @classmethod
+    def from_status(cls, status):
+        return cls({status: 1})
 
 
 def print_table(scheduler, graph, targets):
     targets = list(targets)
 
     name_col_width = max((len(target.name) for target in targets), default=0) + 4
-    format_str = (
-        "{name:<{name_col_width}}{status:<23}{percentage:>7.2%}"
-        " [{num_shouldrun}/{num_submitted}/{num_running}/{num_completed}]"
-    )
 
-    for target in sorted(targets, key=lambda t: t.order):
-        status = scheduler.status(target)
-        color = STATUS_COLORS[status]
+    status_dists = {}
 
-        deps = graph.dfs(target)
-        deps_total = len(deps)
+    def make_status_distribution(node):
+        if node not in status_dists:
+            status = scheduler.status(target)
+            status_dists[node] = sum(
+                (make_status_distribution(dep) for dep in graph.dependencies[node]),
+                StatusDistribution.from_status(status),
+            )
+        return status_dists[node]
 
-        def num_deps_with_status(status):
-            return sum(1 for target in deps if scheduler.status(target) == status)
+    with open_db() as db:
+        for target in sorted(targets, key=lambda t: t.order):
+            status = scheduler.status(target)
+            meta = get_target_meta(target, db=db)
 
-        num_shouldrun = (
-            num_deps_with_status(TargetStatus.SHOULDRUN)
-            + num_deps_with_status(TargetStatus.KILLED)
-            + num_deps_with_status(TargetStatus.CANCELLED)
-            + num_deps_with_status(TargetStatus.FAILED)
-        )
-        num_submitted = num_deps_with_status(TargetStatus.SUBMITTED)
-        num_running = num_deps_with_status(TargetStatus.RUNNING)
-        num_completed = num_deps_with_status(TargetStatus.COMPLETED)
+            status_dist = make_status_distribution(target)
+            percentage = status_dist[TargetStatus.COMPLETED] / status_dist.sum()
 
-        percentage = num_completed / deps_total
+            runtime = meta.runtime()
+            if runtime is None or meta.state in TargetStatus.SHOULDRUN_STATES:
+                duration = "--:--:--"
+            else:
+                m, s = divmod(runtime, 60)
+                h, m = divmod(m, 60)
+                duration = "{:02.0f}:{:02.0f}:{:02.0f}".format(h, m, s)
 
-        line = format_str.format(
-            name=target.name,
-            status=click.style(status.name.lower(), fg=color),
-            percentage=percentage,
-            num_shouldrun=num_shouldrun,
-            num_submitted=num_submitted,
-            num_running=num_running,
-            num_completed=num_completed,
-            name_col_width=name_col_width,
-        )
-        click.echo(line)
+            line = TABLE_FORMAT.format(
+                name=target.name,
+                status=click.style(STATUS_HUMAN[status], fg=STATUS_COLORS[status]),
+                duration=duration,
+                percentage=percentage,
+                name_col_width=name_col_width,
+            )
+            click.echo(line)
 
 
 def print_summary(backend, graph, targets):
-    from collections import Counter
-
     scheduler = Scheduler(backend=backend, graph=graph)
     status_counts = Counter(scheduler.status(target) for target in targets)
     click.echo("{:<15}{:>10}".format("total", len(targets)))
     for status in STATUS_ORDER:
         color = STATUS_COLORS[status]
-        padded_name = "{:<15}".format(status.name.lower())
+        padded_name = "{:<15}".format(status)
         click.echo(
             "{}{:>10}".format(click.style(padded_name, fg=color), status_counts[status])
         )
@@ -131,7 +149,6 @@ def status(obj, status, summary, endpoints, targets):
 
         filters = []
         if status:
-            status = _status_strs_to_enums(status)
             filters.append(StatusFilter(scheduler=scheduler, status=status))
         if targets:
             filters.append(NameFilter(patterns=targets))
