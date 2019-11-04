@@ -5,13 +5,15 @@ import logging
 
 import attr
 import lmdb
+from flufl.lock import Lock
 
 from .exceptions import GWFError
 
 
 logger = logging.getLogger(__name__)
 
-METADATA_FILE = os.path.join(".gwf", "meta.db")
+
+_lock = Lock(os.path.join(".gwf", "lock"))
 
 
 class State:
@@ -31,8 +33,8 @@ class State:
     TRANSITION_MAP = {UNKNOWN: [SUBMITTED], SUBMITTED: [RUNNING], RUNNING: END_STATES}
 
 
-def open_db():
-    return lmdb.open(METADATA_FILE)
+def open_db(path=os.path.join(".gwf", "meta.db")):
+    return lmdb.open(path, lock=False)
 
 
 class StateError(GWFError):
@@ -41,8 +43,6 @@ class StateError(GWFError):
 
 @attr.s
 class TargetMeta:
-    _CACHE = {}
-
     db = attr.ib(repr=False)
     target = attr.ib()
     submitted_at = attr.ib(type=float, default=None)
@@ -102,7 +102,7 @@ class TargetMeta:
             self.commit()
 
     def commit(self):
-        with self.db.begin(write=True) as txn:
+        with _lock, open_db() as db, db.begin(write=True) as txn:
             dct = attr.asdict(
                 self,
                 filter=attr.filters.exclude(
@@ -122,7 +122,7 @@ class TargetMeta:
 
     @classmethod
     def from_target(cls, db, target):
-        with db.begin() as txn:
+        with _lock, open_db() as db, db.begin() as txn:
             payload = txn.get(target.name.encode("utf-8"))
             return cls.from_payload(db, target, payload)
 
