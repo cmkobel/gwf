@@ -103,16 +103,16 @@ class Client:
 class LocalBackend(Backend):
     """Backend that runs targets on a local cluster.
 
-    To use this backend you must activate the `local` backend and start a
-    local cluster (with one or more workers) that the backend can submit targets
-    to. To start a cluster with two workers run the command::
+    To use this backend you must activate the `local` backend and start a local
+    cluster (with one or more workers) that the backend can submit targets to.
+    To start a cluster with two workers run the command::
 
         gwf -b local workers -n 2
 
-    in the working directory of your project. The workflow file must be accessible
-    to *gwf*. Thus, if your workflow file is not called `workflow.py` or the
-    workflow object is not called `gwf`, you must specify this so that *gwf* can
-    locate the workflow::
+    in the working directory of your project. The workflow file must be
+    accessible to *gwf*. Thus, if your workflow file is not called
+    `workflow.py` or the workflow object is not called `gwf`, you must specify
+    this so that *gwf* can locate the workflow::
 
         gwf -f myworkflow.py:wf1 -b local workers -n 2
 
@@ -130,8 +130,10 @@ class LocalBackend(Backend):
 
     **Backend options:**
 
-    * **local.host (str):** Set the host that the workers are running on (default: localhost).
-    * **local.port (int):** Set the port used to connect to the workers (default: 12345).
+    * **local.host (str):** Set the host that the workers are running on
+      (default: localhost).
+    * **local.port (int):** Set the port used to connect to the workers
+      (default: 12345).
 
     **Target options:**
 
@@ -219,9 +221,9 @@ class Worker:
         while True:
             task_id, request = self.queue.get()
 
-            # If the task isn't pending, it may have been resubmitted by multiple
-            # tasks in different workers. We shouldn't run it twice, so we'll skip
-            # it.
+            # If the task isn't pending, it may have been resubmitted by
+            # multiple tasks in different workers. We shouldn't run it twice,
+            # so we'll skip it.
             if self.status[task_id] != LocalStatus.SUBMITTED:
                 continue
 
@@ -363,9 +365,9 @@ class Server:
     def start(self):
         """Starts a server that controls local workers.
 
-        Calling this function starts a pool of `num_workers` workers used to run
-        targets sent to the server. The server will run indefinitely unless shut
-        down by the user.
+        Calling this function starts a pool of `num_workers` workers used to
+        run targets sent to the server. The server will run indefinitely unless
+        shut down by the user.
         """
         try:
             serv = Listener((self.hostname, self.port))
