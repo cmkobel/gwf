@@ -3,7 +3,6 @@ import os.path
 import time
 import logging
 
-import attr
 import lmdb
 from flufl.lock import Lock
 
@@ -13,7 +12,12 @@ from .exceptions import GWFError
 logger = logging.getLogger(__name__)
 
 
-_lock = Lock(os.path.join(".gwf", "lock"))
+def open_db(path=os.path.join(".gwf", "meta.db")):
+    return lmdb.open(path, lock=False)
+
+
+class StateError(GWFError):
+    pass
 
 
 class State:
@@ -33,22 +37,20 @@ class State:
     TRANSITION_MAP = {UNKNOWN: [SUBMITTED], SUBMITTED: [RUNNING], RUNNING: END_STATES}
 
 
-def open_db(path=os.path.join(".gwf", "meta.db")):
-    return lmdb.open(path, lock=False)
-
-
-class StateError(GWFError):
-    pass
-
-
-@attr.s
 class TargetMeta:
-    db = attr.ib(repr=False)
-    target = attr.ib()
-    submitted_at = attr.ib(type=float, default=None)
-    started_at = attr.ib(type=float, default=None)
-    ended_at = attr.ib(type=float, default=None)
-    state = attr.ib(type=str, default=State.INITIAL_STATE)
+    def __init__(
+        self,
+        target,
+        submitted_at=None,
+        started_at=None,
+        ended_at=None,
+        state=State.INITIAL_STATE,
+    ):
+        self.target = target
+        self.submitted_at = submitted_at
+        self.started_at = started_at
+        self.ended_at = ended_at
+        self.state = state
 
     def runtime(self):
         """Return runtime of the target in seconds.
@@ -102,32 +104,38 @@ class TargetMeta:
             self.commit()
 
     def commit(self):
-        with _lock, open_db() as db, db.begin(write=True) as txn:
-            dct = attr.asdict(
-                self,
-                filter=attr.filters.exclude(
-                    attr.fields(TargetMeta).db, attr.fields(TargetMeta).target
-                ),
-            )
-            payload = json.dumps(dct).encode("utf-8")
+        dct = {
+            "submitted_at": self.submitted_at,
+            "started_at": self.started_at,
+            "ended_at": self.ended_at,
+            "state": self.state,
+        }
+        payload = json.dumps(dct).encode("utf-8")
+        lock = Lock(os.path.join(".gwf", "lock"))
+        with lock, open_db() as db, db.begin(write=True) as txn:
             txn.put(self.target.name.encode("utf-8"), payload)
 
     @classmethod
-    def from_payload(cls, db, target, payload=None):
-        logger.debug("Fetching target metadata from database")
+    def from_payload(cls, target, payload=None):
         if payload is None:
-            return cls(db, target)
-        state = cls(db, target, **json.loads(payload.decode("utf-8")))
-        return state
+            return cls(target)
+        return cls(target, **json.loads(payload.decode("utf-8")))
 
     @classmethod
-    def from_target(cls, db, target):
-        with _lock, open_db() as db, db.begin() as txn:
-            payload = txn.get(target.name.encode("utf-8"))
-            return cls.from_payload(db, target, payload)
+    def from_targets(cls, targets):
+        lock = Lock(os.path.join(".gwf", "lock"))
+        metas = []
+        with lock, open_db() as db, db.begin() as txn:
+            for target in targets:
+                payload = txn.get(target.name.encode("utf-8"))
+                meta = cls.from_payload(target, payload)
+                metas.append(meta)
+        return metas
 
 
-def get_target_meta(target, db=None):
-    if db is None:
-        db = open_db()
-    return TargetMeta.from_target(db, target)
+def get_target_meta(target):
+    return TargetMeta.from_targets([target])[0]
+
+
+def get_target_metas(targets):
+    return TargetMeta.from_targets(targets)

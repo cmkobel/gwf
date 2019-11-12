@@ -4,7 +4,7 @@ import click
 
 from ..backends import backend_from_config
 from ..core import Scheduler, TargetStatus, graph_from_config
-from ..meta import get_target_meta, open_db
+from ..meta import get_target_metas
 from ..filtering import StatusFilter, EndpointFilter, NameFilter, filter_generic
 
 
@@ -72,30 +72,30 @@ def print_table(scheduler, graph, targets):
             )
         return status_dists[node]
 
-    with open_db() as db:
-        for target in sorted(targets, key=lambda t: t.order):
-            status = scheduler.status(target)
-            meta = get_target_meta(target, db=db)
+    sorted_targets = sorted(targets, key=lambda t: t.order)
+    target_metas = get_target_metas(sorted_targets)
+    for target, meta in zip(sorted_targets, target_metas):
+        status = scheduler.status(target)
 
-            status_dist = make_status_distribution(target)
-            percentage = status_dist[TargetStatus.COMPLETED] / status_dist.sum()
+        status_dist = make_status_distribution(target)
+        percentage = status_dist[TargetStatus.COMPLETED] / status_dist.sum()
 
-            runtime = meta.runtime()
-            if runtime is None or meta.state in TargetStatus.SHOULDRUN_STATES:
-                duration = "--:--:--"
-            else:
-                m, s = divmod(runtime, 60)
-                h, m = divmod(m, 60)
-                duration = "{:02.0f}:{:02.0f}:{:02.0f}".format(h, m, s)
+        runtime = meta.runtime()
+        if runtime is None or meta.state in TargetStatus.SHOULDRUN_STATES:
+            duration = "--:--:--"
+        else:
+            m, s = divmod(runtime, 60)
+            h, m = divmod(m, 60)
+            duration = "{:02.0f}:{:02.0f}:{:02.0f}".format(h, m, s)
 
-            line = TABLE_FORMAT.format(
-                name=target.name,
-                status=click.style(STATUS_HUMAN[status], fg=STATUS_COLORS[status]),
-                duration=duration,
-                percentage=percentage,
-                name_col_width=name_col_width,
-            )
-            click.echo(line)
+        line = TABLE_FORMAT.format(
+            name=target.name,
+            status=click.style(STATUS_HUMAN[status], fg=STATUS_COLORS[status]),
+            duration=duration,
+            percentage=percentage,
+            name_col_width=name_col_width,
+        )
+        click.echo(line)
 
 
 def print_summary(backend, graph, targets):

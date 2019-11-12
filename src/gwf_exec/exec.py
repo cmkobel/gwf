@@ -6,9 +6,6 @@ import subprocess
 import time
 import sys
 
-import attr
-
-
 from gwf.exceptions import GWFError
 
 logger = logging.getLogger(__name__)
@@ -26,15 +23,14 @@ class CancelledError(ExecutionError):
     pass
 
 
-@attr.s
 class Executor:
-    target = attr.ib()
-    state = attr.ib()
+    def __init__(self, target, state):
+        self.target = target
+        self.state = state
 
-    _killed = attr.ib(default=False, repr=False)
-    _cancelled = attr.ib(default=False, repr=False)
+        self._killed = False
+        self._cancelled = False
 
-    def __attrs_post_init__(self):
         signal.signal(signal.SIGTERM, self._handle_kill)
         signal.signal(signal.SIGUSR1, self._handle_cancel)
 

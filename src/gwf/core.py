@@ -5,7 +5,7 @@ import os.path
 from collections import defaultdict
 
 from .exceptions import WorkflowError
-from .meta import State, get_target_meta, open_db
+from .meta import State, get_target_meta
 from .utils import LazyDict, cache, load_workflow, parse_path, timer
 
 logger = logging.getLogger(__name__)
@@ -265,9 +265,7 @@ class Scheduler:
         system and that is not provided by another target.
     """
 
-    def __init__(
-        self, graph, backend, dry_run=False, file_cache=FileCache(), meta_db=None
-    ):
+    def __init__(self, graph, backend, dry_run=False, file_cache=FileCache()):
         """
         :param gwf.Graph graph:
             Graph of the workflow.
@@ -284,7 +282,6 @@ class Scheduler:
 
         self._file_cache = file_cache
         self._pretend_known = set()
-        self._meta_db = meta_db or open_db()
 
         # Sets used to detect and remember invalidated states in
         # self.fix_states().
@@ -345,7 +342,7 @@ class Scheduler:
             else:
                 logger.info("Submitting target %s", target)
 
-                meta = get_target_meta(target, db=self._meta_db)
+                meta = get_target_meta(target)
                 meta.reset(autocommit=False)
                 meta.submitted(autocommit=False)
                 meta.commit()
@@ -467,7 +464,7 @@ class Scheduler:
                 if _dfs(dep):
                     is_invalid = True
 
-            meta = get_target_meta(target, self._meta_db)
+            meta = get_target_meta(target)
             if meta.state in (
                 State.FAILED,
                 State.KILLED,
@@ -486,7 +483,7 @@ class Scheduler:
 
         for target in self._invalidated:
             logger.debug("Resetting state of %s", target)
-            meta = get_target_meta(target, self._meta_db)
+            meta = get_target_meta(target)
             meta.reset()
 
     def status(self, target):
@@ -500,7 +497,7 @@ class Scheduler:
         """
         self._fix_states(target)
 
-        state = get_target_meta(target, self._meta_db).state
+        state = get_target_meta(target).state
         should_run = self.should_run(target)
         if state == State.UNKNOWN or state == State.COMPLETED:
             if should_run:
