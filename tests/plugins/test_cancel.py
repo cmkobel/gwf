@@ -18,8 +18,18 @@ def simple_workflow():
 
 
 def test_cancel_one_target(cli_runner):
-    result = cli_runner.invoke(main, ["-b", "testing", "cancel", "Target1"])
-    assert result.output == "Cancelling target Target1.\n"
+    result = cli_runner.invoke(
+        main,
+        [
+            "-b",
+            "testing",
+            "-f",
+            "examples/simple-workflow/workflow.py",
+            "cancel",
+            "Target1",
+        ],
+    )
+    assert result.output == "Cancelling target Target1\n"
 
 
 def test_cancel_two_targets(cli_runner):
