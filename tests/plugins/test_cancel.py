@@ -17,7 +17,6 @@ def simple_workflow():
     path = Path(".").joinpath("workflow.py")
     with open(path, "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-    return path
 
 
 def test_cancel_one_target(cli_runner):

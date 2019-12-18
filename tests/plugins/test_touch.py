@@ -2,12 +2,13 @@ import os
 import os.path
 import multiprocessing
 
-multiprocessing.set_start_method("fork")
-
 import pytest
 
 from gwf.cli import main
 from gwf.backends.local import Server
+
+
+multiprocessing.set_start_method("fork")
 
 
 SIMPLE_WORKFLOW = """from gwf import Workflow
@@ -23,7 +24,6 @@ gwf.target('Target3', inputs=['b.txt'], outputs=['c.txt'])
 def simple_workflow():
     with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-    return os.path.join(os.getcwd(), "workflow.py")
 
 
 @pytest.fixture

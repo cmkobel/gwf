@@ -1,5 +1,4 @@
 import os
-import os.path
 
 import pytest
 
@@ -18,7 +17,6 @@ gwf.target('Target2', inputs=[], outputs=[]) << "echo world hello"
 def simple_workflow():
     with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-    return os.path.join(os.getcwd(), "workflow.py")
 
 
 def test_run_all_targets(cli_runner, mocker, simple_workflow):
