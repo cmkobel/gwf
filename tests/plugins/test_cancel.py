@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 
 from gwf.cli import main
 
@@ -14,8 +13,7 @@ gwf.target('Target2', inputs=[], outputs=['b.txt']) << "echo world hello"
 
 @pytest.fixture(autouse=True)
 def simple_workflow():
-    path = Path(".").joinpath("workflow.py")
-    with open(path, "w") as fileobj:
+    with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
 
 
