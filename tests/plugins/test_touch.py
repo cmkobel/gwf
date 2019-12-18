@@ -23,10 +23,7 @@ gwf.target('Target3', inputs=['b.txt'], outputs=['c.txt'])
 def simple_workflow():
     with open("workflow.py", "w") as fileobj:
         fileobj.write(SIMPLE_WORKFLOW)
-<<<<<<< HEAD
-=======
     return os.path.join(os.getcwd(), "workflow.py")
->>>>>>> Clean up and fix tests to use TargetState
 
 
 @pytest.fixture
