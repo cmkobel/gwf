@@ -267,8 +267,7 @@ class shell_formatted_list(list):
     def __init__(self, input = []):
         if type(input) == str:
             self.extend([input])
-
-        elif isinstance(input, Iterable): #TODO: use isinstance
+        elif isinstance(input, Iterable): 
             self.extend([i for i in input])
 
     def flatten(self, container):
@@ -281,7 +280,7 @@ class shell_formatted_list(list):
             else:
                 yield i
 
-    # Flattening happens only when converting returning the object as string.
+    # Flattening happens only when returning the object as string.
     def __str__(self):  
         return " ".join(self.flatten(self))
 
