@@ -9,9 +9,11 @@ from enum import Enum
 from .backends import Status
 from .compat import fspath
 from .exceptions import NameError, WorkflowError
-from .utils import cache, is_valid_name, timer
+from .utils import cache, is_valid_name, timer, shell_formatted_list, shell_formatted_dict
 
 logger = logging.getLogger(__name__)
+
+
 
 
 def _flatten(t):
@@ -164,6 +166,22 @@ class AnonymousTarget:
     def __lshift__(self, spec):
         self.spec = spec
         return self
+
+    def __rshift__(self, spec):
+        """ This is an enhanced version of __lshift__ that aims to make
+        the substitution of inputs and outputs easier.
+        """     
+        def handle_type(item):
+            if type(item) == str or type(item) == list:
+                return shell_formatted_list(item)
+            elif type(item) == dict:
+                return shell_formatted_dict(item)
+
+        self.spec = spec.format(
+            inputs = handle_type(self.inputs),
+            outputs = handle_type(self.outputs))
+        return self
+
 
     def __repr__(self):
         return "{}(inputs={!r}, outputs={!r}, options={!r}, working_dir={!r}, spec={!r})".format(

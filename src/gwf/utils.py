@@ -11,6 +11,7 @@ import socket
 import sys
 import time
 from collections import UserDict
+from collections.abc import Iterable
 from contextlib import ContextDecorator
 from functools import wraps
 from urllib.request import urlopen
@@ -256,3 +257,47 @@ def retry(on_exc, max_retries=3, callback=None):
 
 
 retry.RetryError = RetryError
+
+
+class shell_formatted_list(list):
+    """ This is a list-dummy-class, that changes the __str__ method so that it 
+        readily prints bash-compatible file names (list of str) via the
+        str.format() function.
+    """
+    def __init__(self, input = []):
+        if type(input) == str:
+            self.extend([input])
+
+        elif isinstance(input, Iterable): #TODO: use isinstance
+            self.extend([i for i in input])
+
+    def flatten(self, container):
+        """ Routine for flattening lists in the __str__function
+        """
+        for i in container:
+            if isinstance(i, (list,tuple)):
+                for j in self.flatten(i):
+                    yield j
+            else:
+                yield i
+
+    # Flattening happens only when converting returning the object as string.
+    def __str__(self):  
+        return " ".join(self.flatten(self))
+
+
+class shell_formatted_dict(dict):
+    """ This class represents a dictionary where all iterable elements (strings
+        representing files) have been converted to a shell_formatted_list, such 
+        that it can be readily printed for execution in a shell script.
+    """
+    # TODO: Could be made recursive for infinite nestedness.
+    def __init__(self, input = {}):
+        # I know it is a bit heavy to do the conversion ahead of time, but I think it is easiest to implement.
+        for key, val in input.items():
+            if isinstance(val, (list, tuple, str)):
+                self.update({key: shell_formatted_list(val)}) 
+
+    def __str__(self):
+        rv = shell_formatted_list(self.values())
+        return str(rv)
