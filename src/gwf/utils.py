@@ -265,7 +265,7 @@ class shell_formatted_list(list):
         str.format() function.
     """
     def __init__(self, input = []):
-        if type(input) == str:
+        if type(input) == str: # Encapsulate str as list(str) for meaningful subscripting of strings.
             self.extend([input])
         elif isinstance(input, Iterable): 
             self.extend([i for i in input])
