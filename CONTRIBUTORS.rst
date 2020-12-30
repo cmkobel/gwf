@@ -6,3 +6,4 @@ Contributors
 * Anders Halager
 * Michael Knudsen
 * Tobias Madsen
+* Carl M. Kobel
